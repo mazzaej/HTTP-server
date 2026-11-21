@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Finance</title>
+<script src="/static/chart.umd.js"></script>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#14181f;--mute:#667085;--line:#e4e7ec;--accent:#2563eb;--good:#12804f;--bad:#c2410c;--soft:#eef2ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1116;--card:#171b22;--ink:#e8ebf0;--mute:#8b94a3;--line:#262c36;--accent:#6ea0ff;--good:#3ecf8e;--bad:#ff9a62;--soft:#1c2433}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.app{display:grid;grid-template-columns:200px 1fr 380px;height:100vh}
+nav{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:2px;background:var(--card)}
+nav h1{font-size:16px;margin:0 8px 14px}
+nav button{all:unset;cursor:pointer;padding:8px 10px;border-radius:8px;color:var(--mute);font-weight:500}
+nav button:hover{background:var(--soft)}nav button.on{background:var(--soft);color:var(--accent)}
+nav .sp{flex:1}
+main{overflow:auto;padding:24px 28px}
+h2{margin:0 0 4px;font-size:22px}.sub{color:var(--mute);margin:0 0 18px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute);font-weight:600}
+.big{font-size:28px;font-weight:700;letter-spacing:-.02em}.good{color:var(--good)}.bad{color:var(--bad)}.mute{color:var(--mute)}
+.row2{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:14px}
+.chartbox{position:relative;height:260px}
+table{width:100%;border-collapse:collapse}th,td{padding:8px 6px;text-align:left;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+input,select{background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;width:100%}
+label{font-size:12px;color:var(--mute);display:block;margin-bottom:3px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer}
+.btn.alt{background:var(--soft);color:var(--accent)}.btn:disabled{opacity:.5}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;background:var(--soft);color:var(--accent);font-size:12px}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}.bar>i{display:block;height:100%;background:var(--accent)}
+/* chat */
+aside{border-left:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;min-height:0}
+aside header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-weight:600}
+#log{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:92%;padding:9px 12px;border-radius:12px;white-space:normal;word-wrap:break-word}
+.msg.user{align-self:flex-end;background:var(--accent);color:#fff}.msg.assistant{align-self:flex-start;background:var(--soft)}
+.msg ul{margin:4px 0;padding-left:20px}.msg p{margin:4px 0}
+.tools{font-size:11px;color:var(--mute);margin-top:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px}.chips button{all:unset;cursor:pointer;font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:99px;color:var(--mute)}
+.chips button:hover{color:var(--accent);border-color:var(--accent)}
+#cf{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}#cf input{flex:1}
+#login{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:9}
+#login form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px;width:320px;display:grid;gap:12px}
+.banner{background:var(--soft);border-radius:10px;padding:8px 12px;margin-bottom:14px;color:var(--accent);font-size:13px}
+@media(max-width:1100px){.app{grid-template-columns:1fr;height:auto}nav{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}nav h1,nav .sp{display:none}
+aside{border-left:0;border-top:1px solid var(--line);height:70vh}.row2{grid-template-columns:1fr}main{padding:16px}}
+</style>
+</head>
+<body>
+<div id="login"><form onsubmit="return doLogin(event)"><h2>My Finance</h2><input id="pw" type="password" placeholder="Password" autofocus><button class="btn">Sign in</button><div id="lerr" class="bad"></div></form></div>
+<div class="app">
+<nav>
+  <h1>💼 My Finance</h1>
+  <button data-t="overview" class="on">Overview</button><button data-t="spending">Spending</button>
+  <button data-t="subs">Subscriptions</button><button data-t="invest">Investments</button>
+  <button data-t="retire">Retirement</button><button data-t="afford">Afford</button><button data-t="accounts">Accounts</button>
+  <div class="sp"></div><button onclick="logout()">Sign out</button>
+</nav>
+<main id="main"></main>
+<aside>
+  <header><span>Ask anything</span><button class="btn alt" style="padding:3px 9px;font-size:12px" onclick="clearChat()">Clear</button></header>
+  <div id="log"></div>
+  <div class="chips" id="chips"></div>
+  <form id="cf" onsubmit="return send(event)"><input id="msg" placeholder="e.g. Can I afford a $600k house?" autocomplete="off"><button class="btn">Send</button></form>
+</aside>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const usd=(n,d=0)=>n==null?'–':(n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const compact=n=>Math.abs(n)>=1e6?(n/1e6).toFixed(2)+'M':Math.abs(n)>=1e3?(n/1e3).toFixed(0)+'k':String(Math.round(n));
+const pretty=s=>String(s||'').toLowerCase().replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+const PAL=['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#14b8a6','#ec4899','#64748b'];
+let ME={},charts=[];
+async function api(path,opts={}){
+  const r=await fetch('/api'+path,{credentials:'same-origin',headers:opts.body&&!(opts.body instanceof FormData)?{'Content-Type':'application/json'}:{},...opts,
+    body:opts.body instanceof FormData?opts.body:opts.body?JSON.stringify(opts.body):undefined});
+  if(r.status===401&&path!=='/login'){showLogin();throw new Error('auth')}
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||r.statusText);return j}
+function chart(id,cfg){const el=document.getElementById(id);if(!el)return;
+  const dark=matchMedia('(prefers-color-scheme:dark)').matches;Chart.defaults.color=dark?'#8b94a3':'#667085';Chart.defaults.borderColor=dark?'#262c36':'#e4e7ec';
+  cfg.options={maintainAspectRatio:false,...cfg.options};charts.push(new Chart(el,cfg))}
+function killCharts(){charts.forEach(c=>c.destroy());charts=[]}
+const money=v=>usd(v.parsed?.y??v.parsed);
+
+/* ---------- auth ---------- */
+function showLogin(){$('#login').style.display='flex'}
+async function doLogin(e){e.preventDefault();try{await api('/login',{method:'POST',body:{password:$('#pw').value}});$('#login').style.display='none';boot()}catch(x){$('#lerr').textContent=x.message}return false}
+async function logout(){await api('/logout',{method:'POST'});location.reload()}
+
+/* ---------- tabs ---------- */
+const TABS={overview,spending,subs,invest,retire,afford,accounts};
+let tab='overview';
+document.querySelectorAll('nav button[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');tab=b.dataset.t;render()});
+async function render(){killCharts();$('#main').innerHTML='<p class="mute">Loading…</p>';try{await TABS[tab]()}catch(e){if(e.message!=='auth')$('#main').innerHTML='<p class="bad">'+esc(e.message)+'</p>'}}
+const head=(t,s)=>`<h2>${t}</h2><p class="sub">${s}</p>`+(ME.demo?'<div class="banner">Demo mode: all data below is fake sample data.</div>':'');
+
+async function overview(){
+  const o=await api('/overview'),nw=o.net_worth,cf=o.cash_flow;
+  const sr=cf.avg_savings_rate_pct;
+  $('#main').innerHTML=head('Overview','Where you stand right now')+`
+  <div class="grid">
+   <div class="card"><h3>Net worth</h3><div class="big">${usd(nw.net_worth)}</div><div class="mute">Assets ${usd(nw.assets)} · Debt ${usd(nw.liabilities)}</div></div>
+   <div class="card"><h3>Avg monthly income</h3><div class="big">${usd(cf.avg_monthly_income)}</div><div class="mute">last ${cf.window.months_with_data} full months</div></div>
+   <div class="card"><h3>Avg monthly spending</h3><div class="big">${usd(cf.avg_monthly_spending)}</div><div class="mute">Subscriptions ${usd(o.subscription_monthly)}/mo</div></div>
+   <div class="card"><h3>Savings rate</h3><div class="big ${sr>=20?'good':'bad'}">${sr==null?'–':sr+'%'}</div><div class="mute">before investing transfers</div></div>
+   <div class="card"><h3>Emergency fund</h3><div class="big">${o.emergency_fund_months??'–'} mo</div><div class="mute">cash ÷ monthly spending</div></div>
+   <div class="card"><h3>Credit utilization</h3><div class="big ${o.credit_utilization_pct<30?'good':'bad'}">${o.credit_utilization_pct??'–'}%</div><div class="mute">of total card limits</div></div>
+  </div>
+  <div class="row2"><div class="card"><h3>Net worth over time</h3><div class="chartbox"><canvas id="c1"></canvas></div></div>
+  <div class="card"><h3>Where your money is</h3><div class="chartbox"><canvas id="c2"></canvas></div></div></div>
+  <div class="card"><h3>Income vs spending</h3><div class="chartbox"><canvas id="c3"></canvas></div></div>`;
+  chart('c1',{type:'line',data:{labels:nw.history.map(h=>h.date),datasets:[{data:nw.history.map(h=>h.net_worth),borderColor:PAL[0],backgroundColor:PAL[0]+'22',fill:true,pointRadius:0,tension:.3}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:money}}},scales:{y:{ticks:{callback:v=>'$'+compact(v)}}}}});
+  const b=Object.entries(nw.by_bucket);
+  chart('c2',{type:'doughnut',data:{labels:b.map(x=>pretty(x[0])),datasets:[{data:b.map(x=>x[1]),backgroundColor:PAL}]},options:{plugins:{tooltip:{callbacks:{label:v=>v.label+': '+usd(v.parsed)}},legend:{position:'bottom'}}}});
+  chart('c3',{type:'bar',data:{labels:cf.months.map(m=>m.month),datasets:[{label:'Income',data:cf.months.map(m=>m.income),backgroundColor:PAL[1]},{label:'Spending',data:cf.months.map(m=>m.spending),backgroundColor:PAL[3]}]},options:{plugins:{tooltip:{callbacks:{label:v=>v.dataset.label+': '+usd(v.parsed.y)}}},scales:{y:{ticks:{callback:v=>'$'+compact(v)}}}}});
+}
+
+async function spending(){
+  const months=+(window._sm||3);const s=await api('/spending?months='+months);
+  $('#main').innerHTML=head('Spending','Transfers and credit-card payments are excluded so nothing is double counted')+`
+  <div class="form" style="max-width:220px"><div><label>Window</label><select id="sm" onchange="window._sm=this.value;render()">${[1,3,6,12].map(m=>`<option value="${m}" ${m==months?'selected':''}>Last ${m} month${m>1?'s':''}</option>`).join('')}</select></div></div>
+  <div class="row2"><div class="card"><h3>By category · ${usd(s.avg_per_month)}/mo</h3><div class="chartbox"><canvas id="c1"></canvas></div></div>
+  <div class="card"><h3>Top merchants</h3><table>${s.merchants.slice(0,10).map(m=>`<tr><td>${esc(m.merchant)}</td><td class="n">${usd(m.total)}</td></tr>`).join('')}</table></div></div>
+  <div class="card"><h3>Category detail</h3><table><tr><th>Category</th><th class="n">Per month</th><th class="n">Total</th><th class="n">Share</th></tr>
+  ${s.categories.map(c=>`<tr><td>${pretty(c.category)}</td><td class="n">${usd(c.per_month)}</td><td class="n">${usd(c.total)}</td><td class="n">${c.pct}%</td></tr>`).join('')}</table></div>`;
+  chart('c1',{type:'doughnut',data:{labels:s.categories.map(c=>pretty(c.category)),datasets:[{data:s.categories.map(c=>c.total),backgroundColor:PAL}]},options:{plugins:{legend:{position:'right'},tooltip:{callbacks:{label:v=>v.label+': '+usd(v.parsed)}}}}});
+}
+
+async function subs(){
+  const s=await api('/subscriptions');const row=i=>`<tr><td>${esc(i.merchant)} ${i.active?'':'<span class="pill">possibly cancelled</span>'}</td><td>${i.cadence}</td><td class="n">${usd(i.amount,2)}</td><td class="n">${usd(i.annual_cost)}</td><td>${i.next_expected}</td></tr>`;
+  const th='<tr><th>Merchant</th><th>Cadence</th><th class="n">Charge</th><th class="n">Per year</th><th>Next</th></tr>';
+  $('#main').innerHTML=head('Subscriptions & bills','Detected automatically from recurring charges')+`
+  <div class="grid"><div class="card"><h3>Subscriptions</h3><div class="big">${usd(s.active_subscription_monthly)}<span class="mute" style="font-size:14px">/mo</span></div><div class="mute">${usd(s.active_subscription_annual)} per year</div></div>
+  <div class="card"><h3>Recurring bills</h3><div class="big">${usd(s.active_bills_monthly)}<span class="mute" style="font-size:14px">/mo</span></div></div></div>
+  <div class="card"><h3>Subscriptions</h3><table>${th}${s.items.filter(i=>i.kind==='subscription').map(row).join('')||'<tr><td class="mute">None detected</td></tr>'}</table></div><br>
+  <div class="card"><h3>Bills</h3><table>${th}${s.items.filter(i=>i.kind==='bill').map(row).join('')||'<tr><td class="mute">None detected</td></tr>'}</table></div>`;
+}
+
+async function invest(){
+  const v=await api('/investments');const b=v.balances;
+  $('#main').innerHTML=head('Investments','Across 401(k), Roth, Traditional, brokerage and crypto')+`
+  <div class="grid">${[['pretax','Pre-tax (401k / Trad IRA)'],['roth','Roth'],['taxable','Taxable brokerage'],['crypto','Crypto']].map(([k,l])=>`<div class="card"><h3>${l}</h3><div class="big">${usd(b[k])}</div></div>`).join('')}
+  <div class="card"><h3>Unrealized gain</h3><div class="big ${v.unrealized_gain>=0?'good':'bad'}">${usd(v.unrealized_gain)}</div></div></div>
+  <div class="row2"><div class="card"><h3>Asset allocation</h3><div class="chartbox"><canvas id="c1"></canvas></div></div>
+  <div class="card"><h3>Top holdings</h3><table>${v.top_holdings.map(h=>`<tr><td>${esc(h.ticker)}</td><td class="n">${usd(h.value)}</td><td class="n">${h.pct}%</td></tr>`).join('')}</table></div></div>`;
+  chart('c1',{type:'doughnut',data:{labels:v.by_asset_class.map(c=>pretty(c.class)),datasets:[{data:v.by_asset_class.map(c=>c.value),backgroundColor:PAL}]},options:{plugins:{legend:{position:'right'},tooltip:{callbacks:{label:x=>x.label+': '+usd(x.parsed)}}}}});
+}
+
+async function retire(){
+  const p=await api('/profile');const ov=window._ro||{};
+  const f=(k,l,step=1)=>`<div><label>${l}</label><input id="r_${k}" type="number" step="${step}" value="${ov[k]??p[k]}"></div>`;
+  $('#main').innerHTML=head('Retirement','Monte Carlo simulation in today\'s dollars. Change a number and re-run to see the effect.')+`
+  <div class="card" style="margin-bottom:14px"><div class="form">${f('age','Age')}${f('retirement_age','Retire at')}${f('annual_retirement_contribution','Invest per year ($)',1000)}
+  ${f('retirement_spending_annual','Retirement spending/yr ($, 0 = current)',1000)}${f('expected_real_return','Real return',0.005)}${f('return_volatility','Volatility',0.01)}${f('social_security_annual','Social Security/yr ($)',1000)}</div>
+  <button class="btn" onclick="runRetire()">Run projection</button> <button class="btn alt" onclick="saveProfile()">Save as my defaults</button></div><div id="rr"></div>`;
+  runRetire();
+}
+function retireInputs(){const o={};document.querySelectorAll('[id^=r_]').forEach(e=>o[e.id.slice(2)]=+e.value);return o}
+async function saveProfile(){await api('/profile',{method:'PUT',body:retireInputs()});window._ro=null;$('#rr').insertAdjacentHTML('afterbegin','<div class="banner">Saved.</div>')}
+async function runRetire(){
+  window._ro=retireInputs();$('#rr').innerHTML='<p class="mute">Simulating…</p>';
+  const r=await api('/retirement',{method:'POST',body:window._ro});killCharts();const pr=r.success_probability,a=r.assumptions;
+  $('#rr').innerHTML=`<div class="grid">
+   <div class="card"><h3>Chance it lasts to ${a.plan_through_age}</h3><div class="big ${pr>=.85?'good':'bad'}">${Math.round(pr*100)}%</div><div class="mute">aim for 85%+</div></div>
+   <div class="card"><h3>Median at retirement</h3><div class="big">${usd(r.balance_at_retirement.median)}</div><div class="mute">range ${usd(r.balance_at_retirement.p10)} – ${usd(r.balance_at_retirement.p90)}</div></div>
+   <div class="card"><h3>4% rule target</h3><div class="big">${usd(r.four_percent_target_nest_egg)}</div><div class="mute">${r.median_progress_to_target_pct}% there at median</div></div>
+   <div class="card"><h3>To reach 85%</h3><div class="big">${pr>=.85?'On track':r.contribution_needed_for_85pct_success?usd(r.contribution_needed_for_85pct_success)+'/yr':'Adjust plan'}</div><div class="mute">investing per year</div></div></div>
+   <div class="card"><h3>Projected portfolio (10th / median / 90th percentile)</h3><div class="chartbox" style="height:320px"><canvas id="c1"></canvas></div></div>
+   <p class="mute" style="font-size:13px">Starting balance ${usd(a.starting_investable_balance)} (${a.crypto_included?'incl.':'excl.'} crypto ${usd(a.crypto_balance_excluded)}) · spending ${usd(a.retirement_spending_annual_todays_dollars)}/yr from ${a.spending_source} · ${(a.retirement_tax_rate*100)}% tax on withdrawals · ${a.simulations} simulations</p>`;
+  const L=r.bands.map(b=>b.age),ds=(k,c,fill)=>({label:k,data:r.bands.map(b=>b[k]),borderColor:c,pointRadius:0,borderWidth:k==='p50'?2.5:1.2,fill,backgroundColor:c+'18',tension:.25});
+  chart('c1',{type:'line',data:{labels:L,datasets:[ds('p90',PAL[1],false),ds('p50',PAL[0],false),ds('p10',PAL[3],false)]},options:{interaction:{mode:'index',intersect:false},plugins:{tooltip:{callbacks:{label:v=>v.dataset.label+': '+usd(v.parsed.y)}}},scales:{y:{ticks:{callback:v=>'$'+compact(v)}},x:{title:{display:true,text:'Age'}}}}});
+}
+
+async function afford(){
+  $('#main').innerHTML=head('What can I afford?','Based on your actual income, cash flow and savings')+`
+  <div class="row2" style="grid-template-columns:1fr 1fr">
+  <div class="card"><h3>🚗 Car</h3><div class="form"><div><label>Down payment ($)</label><input id="car_down" type="number" placeholder="auto"></div><div><label>APR %</label><input id="car_apr" type="number" step="0.1" value="6.5"></div><div><label>Term (months)</label><input id="car_term" type="number" value="60"></div><div><label>Insurance /mo</label><input id="car_ins" type="number" value="180"></div></div><button class="btn" onclick="runCar()">Calculate</button><div id="car_out"></div></div>
+  <div class="card"><h3>🏠 House</h3><div class="form"><div><label>Down payment ($)</label><input id="h_down" type="number" placeholder="auto"></div><div><label>Rate %</label><input id="h_rate" type="number" step="0.05" value="6.75"></div><div><label>Prop. tax % of price</label><input id="h_tax" type="number" step="0.1" value="1.5"></div><div><label>Other debt /mo</label><input id="h_debt" type="number" value="0"></div></div><button class="btn" onclick="runHouse()">Calculate</button><div id="h_out"></div></div></div>`;
+  runCar();runHouse();
+}
+const n=id=>{const v=$('#'+id).value;return v===''?undefined:+v};
+async function runCar(){
+  const r=await api('/afford/car',{method:'POST',body:{down_payment:n('car_down'),apr:n('car_apr')/100,term_months:n('car_term'),insurance_monthly:n('car_ins')}});
+  $('#car_out').innerHTML=`<table style="margin-top:12px"><tr><td>Conservative (20/4/10 rule)</td><td class="n"><b>${usd(r.rule_20_4_10.max_price)}</b></td></tr><tr><td>Your down payment & term</td><td class="n"><b>${usd(r.with_your_down_payment_and_term.max_price)}</b></td></tr><tr><td>Cash-flow stretch</td><td class="n"><b>${usd(r.cash_flow_stretch.max_price)}</b></td></tr><tr><td class="mute">Pay cash, keeping 6 mo emergency fund</td><td class="n">${usd(r.buy_with_cash_ceiling)}</td></tr></table><p class="mute" style="font-size:12px">${esc(r.rule_20_4_10.explanation)} Max payment ${usd(r.rule_20_4_10.max_monthly_payment)}/mo.</p>`}
+async function runHouse(){
+  const r=await api('/afford/house',{method:'POST',body:{down_payment:n('h_down'),rate:n('h_rate')/100,property_tax_rate:n('h_tax')/100,monthly_debts:n('h_debt')}});
+  $('#h_out').innerHTML=`<table style="margin-top:12px"><tr><th></th><th class="n">Max price</th><th class="n">Monthly</th></tr>${Object.entries(r.tiers).map(([k,t])=>`<tr><td>${pretty(k)}</td><td class="n"><b>${usd(t.max_price)}</b></td><td class="n">${usd(t.monthly_housing_payment)}</td></tr>`).join('')}</table><p class="mute" style="font-size:12px">Down payment ${usd(r.inputs.down_payment)} (liquid cash + taxable above a 6-month emergency fund). Monthly includes taxes, insurance and PMI.${r.current_rent_monthly?` Current rent ${usd(r.current_rent_monthly)}.`:''}</p>`}
+
+async function accounts(){
+  const d=await api('/accounts');const groups={};d.accounts.forEach(a=>(groups[a.institution]??=[]).push(a));
+  const connect=ME.plaid?`<button class="btn" onclick="plaid('bank')">+ Connect bank / cards (Chase)</button> <button class="btn" onclick="plaid('invest')">+ Connect investments (Fidelity, Vanguard, Coinbase)</button> <button class="btn alt" onclick="sync()">Sync now</button>`:`<span class="mute">Plaid isn't configured yet. See the README to add your keys.</span>`;
+  $('#main').innerHTML=head('Accounts','Everything connected')+`<div class="card" style="margin-bottom:14px">${connect}<div id="cmsg" class="mute" style="margin-top:8px"></div></div>`+
+  Object.entries(groups).map(([i,as])=>`<div class="card" style="margin-bottom:14px"><h3>${esc(i)}</h3><table>${as.map(a=>`<tr><td>${esc(a.name)} <span class="mute">${a.mask?'····'+esc(a.mask):''}</span></td><td><span class="pill">${esc(a.bucket)}</span></td><td class="n ${a.bucket==='credit'||a.bucket==='debt'?'bad':''}">${a.bucket==='credit'||a.bucket==='debt'?'-':''}${usd(a.balance,2)}</td></tr>`).join('')}</table></div>`).join('')+
+  `<div class="card"><h3>Add an account manually</h3><div class="form"><div><label>Institution</label><input id="m_i"></div><div><label>Name</label><input id="m_n"></div><div><label>Type</label><select id="m_b">${['cash','pretax','roth','taxable','crypto','credit','debt'].map(x=>`<option>${x}</option>`).join('')}</select></div><div><label>Balance</label><input id="m_v" type="number"></div></div><button class="btn alt" onclick="addManual()">Add</button> <span class="mute" style="font-size:12px">Use this for anything Plaid can't reach.</span></div>`+
+  (ME.demo?`<p><button class="btn alt" onclick="api('/demo/reset',{method:'POST'}).then(render)">Reset demo data</button></p>`:'');
+}
+async function addManual(){await api('/accounts/manual',{method:'POST',body:{institution:$('#m_i').value,name:$('#m_n').value,bucket:$('#m_b').value,balance:+$('#m_v').value}});render()}
+async function sync(){$('#cmsg').textContent='Syncing…';try{const r=await api('/plaid/sync',{method:'POST'});$('#cmsg').textContent=`Synced ${r.items} institution(s).`+(r.errors.length?' Errors: '+r.errors.join('; '):'');}catch(e){$('#cmsg').textContent=e.message}}
+function loadPlaid(){return new Promise((res,rej)=>{if(window.Plaid)return res();const s=document.createElement('script');s.src='https://cdn.plaid.com/link/v2/stable/link-initialize.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+async function plaid(kind){
+  try{await loadPlaid();const {link_token}=await api('/plaid/link-token',{method:'POST',body:{kind}});
+  Plaid.create({token:link_token,onSuccess:async(pt,meta)=>{$('#cmsg').textContent='Linked. Pulling data…';try{await api('/plaid/exchange',{method:'POST',body:{public_token:pt,institution:meta.institution?.name||''}});render()}catch(e){$('#cmsg').textContent=e.message}}}).open()}
+  catch(e){$('#cmsg').textContent=e.message}}
+
+/* ---------- chat ---------- */
+function md(s){let h=esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').split('\n'),out='',ul=false;
+  for(const l of h){const m=l.match(/^\s*[-*•]\s+(.*)/);if(m){if(!ul){out+='<ul>';ul=true}out+='<li>'+m[1]+'</li>'}else{if(ul){out+='</ul>';ul=false}if(l.trim())out+='<p>'+l+'</p>'}}
+  return out+(ul?'</ul>':'')}
+function bubble(role,text,tools){const d=document.createElement('div');d.className='msg '+role;d.innerHTML=role==='user'?esc(text):md(text);
+  if(tools&&tools.length){const t=document.createElement('div');t.className='tools';t.textContent='Looked at: '+[...new Set(tools)].map(x=>x.replace(/_/g,' ')).join(', ');d.appendChild(t)}
+  $('#log').appendChild(d);$('#log').scrollTop=1e9;return d}
+async function send(e,text){e&&e.preventDefault();const q=text||$('#msg').value.trim();if(!q)return false;$('#msg').value='';bubble('user',q);
+  const w=bubble('assistant','Thinking…');try{const r=await api('/chat',{method:'POST',body:{message:q}});w.remove();bubble('assistant',r.reply,r.tools_used)}catch(x){w.textContent='Error: '+x.message}return false}
+async function clearChat(){await api('/chat',{method:'DELETE'});$('#log').innerHTML='';greet()}
+function greet(){bubble('assistant',"Hi! I can see your accounts and numbers. Ask me about spending, subscriptions, retirement, or big purchases.")}
+const SUGGEST=["How am I doing overall?","Where can I cut spending?","Am I on track to retire at 58?","Can I afford a $600k house?","What if I max out contributions?"];
+async function boot(){
+  ME=await api('/me');if(!ME.authenticated){showLogin();return}
+  $('#chips').innerHTML=SUGGEST.map(s=>`<button>${esc(s)}</button>`).join('');document.querySelectorAll('#chips button').forEach(b=>b.onclick=()=>send(null,b.textContent));
+  const h=await api('/chat/history');$('#log').innerHTML='';h.length?h.forEach(m=>bubble(m.role,m.content)):greet();render()}
+boot().catch(()=>showLogin());
+</script>
+</body>
+</html>
