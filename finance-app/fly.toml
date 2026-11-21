@@ -1,0 +1,25 @@
+# Change `app` to something unique to you (it becomes https://<app>.fly.dev)
+app = "my-finance-CHANGEME"
+primary_region = "iad"
+
+[build]
+
+[env]
+  DB_PATH = "/data/finance.db"
+  DEMO_MODE = "false"
+  PLAID_ENV = "sandbox"   # switch to "production" once Plaid approves you
+
+[mounts]
+  source = "data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

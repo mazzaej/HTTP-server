@@ -42,10 +42,18 @@ The `Dockerfile` works on Fly.io, Render, Railway, etc. Requirements: **https**,
 (the SQLite file lives there), and the env vars above as secrets. Example for Fly:
 
 ```bash
-fly launch --no-deploy && fly volumes create data --size 1
-fly secrets set APP_PASSWORD=... SESSION_SECRET=... FERNET_KEY=... ANTHROPIC_API_KEY=... PLAID_CLIENT_ID=... PLAID_SECRET=... PLAID_ENV=production
+# one-time: install flyctl and `fly auth login`, then edit `app` in fly.toml
+fly apps create <your-app-name>
+fly volumes create data --size 1 --region iad
+fly secrets set \
+  APP_PASSWORD="$(python -c 'import secrets;print(secrets.token_urlsafe(16))')" \
+  SESSION_SECRET="$(python -c 'import secrets;print(secrets.token_urlsafe(48))')" \
+  FERNET_KEY="$(python -c 'from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())')" \
+  ANTHROPIC_API_KEY=... PLAID_CLIENT_ID=... PLAID_SECRET=... \
+  PLAID_REDIRECT_URI=https://<your-app-name>.fly.dev/
 fly deploy
 ```
+`fly.toml` pins a single machine, which is what you want with SQLite (don't scale it to multiple).
 
 ## Security notes
 
